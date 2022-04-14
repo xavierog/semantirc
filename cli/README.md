@@ -53,6 +53,8 @@ super: 16.21 => cold (alice)
 fragile: 2.13 => cold (bob)
 ```
 
+`semantle top` also works with previously played words: `semantle top 25 rabbit`
+
 # Environment variables
 The `semantle` CLI tool supports the following environment variables:
 * HOME and XDG_* environment variables
