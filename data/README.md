@@ -1,5 +1,6 @@
 It is impossible to play Semantle without data.
 This document briefly explains how to generate the 3 data files required to play Semantle.
+TL;DR: run `make-data.bash`
 
 # data directory
 All files described in this document should end up in the same "data" directory.
@@ -32,4 +33,9 @@ sed 's/^secretWords =//; s/^"beat",$/"beat"/' static/assets/js/secretWords.js > 
 
 # Why is this so complicated?
 word2vec.db is not exactly a small file (2.3 GiB) and it is purely data, so it does not make sense to ship it along with this project. And since the other files are so trivial to get once word2vec.db was generated, it does not make sense to ship those either.
-Of course, none of this is very convenient. In the future, this project may provide a script that takes care of everything described above.
+
+# Why is this not automated yet?
+It is, kind of. The `make-data.bash` script is a good start.
+However, depending on the exact packages installed on your system, you may have to fight against:
+* venv, which sometimes require additional packages to work as expected;
+* pip, which needs to compile some C/C++ stuff.
