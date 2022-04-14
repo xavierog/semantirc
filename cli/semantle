@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+import os
+import re
+import sys
+import xdg
+import json
+import random
+from math import sqrt
+from struct import unpack
+from pathlib import Path
+from sqlite3 import connect
+from operator import mul
+from functools import cached_property
+
+NAME = 'semantle'
+DATA_SEP = ';'
+
+class PublicException(BaseException):
+	pass
+
+def env_var_name(name):
+	return NAME.upper() + '_' + name
+
+def env_var(name):
+	return os.environ.get(env_var_name(name))
+
+def semantle_data_path():
+	"""Path to Semantle data (word2vec.db, unbritish.json, secret_words.json)."""
+	if data_path := env_var('DATA_PATH'):
+		return Path(data_path)
+	for directory in xdg.xdg_data_dirs():
+		semantle_dir = directory / NAME / 'data'
+		if os.path.isdir(semantle_dir):
+			return semantle_dir
+	return Path('./data')
+
+def load_json(filename):
+	filepath = semantle_data_path() / filename
+	with open(filepath) as filedesc:
+		data = json.load(filedesc)
+		return data
+
+def secret_words():
+	return load_json('secret_words.json')
+
+def british_spellings():
+	return load_json('british_spellings.json')
+
+def word2vec_connect():
+	database_path = semantle_data_path() / 'word2vec.db'
+	# Use a URI instead of a simple path to open the database in a strictly read-only fashion:
+	database_uri = f'file:{database_path}?immutable=1'
+	# Allow for extra options:
+	if database_options := env_var('WORD2VEC_OPTIONS'):
+		database_uri += '&' + database_options
+	return connect(database_uri, True)
+
+def random_word():
+	words = set(secret_words())
+	prev_words = set(previous_words())
+	available_words = list(words.difference(prev_words))
+	if not available_words:
+		raise Exception('No words available. You played them all. You MONSTER.')
+	random_index = random.randint(0, len(available_words) - 1)
+	return available_words[random_index]
+
+def unbritish_word(word):
+	return british_spellings().get(word, word)
+
+def data_path():
+	return xdg.xdg_data_home() / NAME
+
+def games_path():
+	return data_path() / 'games'
+
+def game_path(word):
+	return games_path() / word
+
+def game_attempts_path(word):
+	return game_path(word) / 'attempts'
+
+def current_game_word():
+	try:
+		return os.readlink(data_path() / 'current-game')
+	except FileNotFoundError:
+		raise PublicException('no ongoing game')
+
+def previous_words():
+	words = []
+	try:
+		for word in os.listdir(games_path()):
+			if os.path.isdir(games_path() / word):
+				words.append(word)
+	except FileNotFoundError:
+		pass
+	return words
+
+def check_word(word):
+	if not re.match(r'^[a-z-]+$', word):	
+		raise PublicException(f'invalid word: {word}')
+
+def store_attempt(secret, word, data):
+	if not data:
+		data = word
+	try:
+		os.symlink(data, game_attempts_path(secret) / word)
+	except FileExistsError:
+		pass
+
+def fetch_attempt(secret, word):
+	try:
+		return os.readlink(game_attempts_path(secret) / word)
+	except FileNotFoundError:
+		return None
+
+def all_attempts(secret):
+	all_words = {}
+	attempts = game_attempts_path(secret)
+	for word in os.listdir(attempts):
+		try:
+			all_words[word] = split_data(os.readlink(attempts / word))
+		except FileNotFoundError:
+			pass
+		except OSError as ose:
+			if ose.errno != '22': # EINVAL / Invalid argument
+				raise
+	return all_words
+
+def join_data(similarity, percentile, data):
+	return DATA_SEP.join([str(similarity), str(percentile), str(data)])
+
+def split_data(data):
+	return data.split(DATA_SEP, maxsplit=2)
+
+def format_guess(word, similarity, percentile, data=None, already_tried=False):
+	if type(similarity) is not str:
+		similarity = percent(similarity)
+	verb = 'won' if percentile == '1000' else 'tried'
+	if percentile != 'cold':
+		percentile = str(percentile) + '/1000'
+	sentence = f'{word}: {similarity} => {percentile}'
+	if already_tried:
+		sentence += f' -- {verb} already'
+	if data:
+		sentence += f' ({data})'
+	return sentence
+
+def expand_bfloat(vec, half_length=600):
+	"""
+	expand truncated float32 to float32
+	"""
+	if len(vec) == half_length:
+		vec = b"".join((b"\00\00" + bytes(pair)) for pair in zip(vec[::2], vec[1::2]))
+	return vec
+
+def get_model2(database_connection, secret, word):
+	"""
+	Use database_connection to lookup word, compare it with secret and return
+	the vector and percentile between them.
+	"""
+	cur = database_connection.cursor()
+	cur.execute(
+		"""SELECT vec, percentile
+		FROM word2vec LEFT OUTER JOIN nearby
+		ON nearby.word=? AND nearby.neighbor=?
+		WHERE word2vec.word = ?""",
+		(secret, word, word)
+	)
+	row = cur.fetchone()
+	if row:
+		row = list(row)
+	if not row:
+		raise PublicException(f'unknown word: {word}')
+	vec = list(unpack("300f", expand_bfloat(row[0])))
+	percentile = row[1] if row[1] else 'cold'
+	return (vec, percentile)
+
+def dot_product(vec1, vec2):
+	return sum(map(mul, vec1, vec2))
+
+def vector_magnitude(vec):
+	"""
+	The magnitude of a vector is the square root of the sum of the squares of all its components.
+	"""
+	return sqrt(dot_product(vec, vec))
+
+def cosine_similarity(vec1, vec2):
+	return dot_product(vec1, vec2) / (vector_magnitude(vec1) * vector_magnitude(vec2))
+
+def compare_words(secret, word):
+	connection = word2vec_connect()
+	secret_vec = get_model2(connection, secret, secret)[0]
+	word_vec, word_percentile = get_model2(connection, secret, word)
+	similarity = cosine_similarity(word_vec, secret_vec)
+	return similarity, word_percentile
+
+def percent(value):
+	return round(value * 100.0, 2)
+
+# Commands
+
+def set_random_word():
+	set_word(random_word())
+
+def set_word(word):
+	check_word(word)
+	# Raise an error if the given word looks valid but is unknown:
+	compare_words(word, word)
+	game_attempts_path(word).mkdir(parents=True, exist_ok=True)
+	tmp_symlink = data_path() / 'current-game2'
+	os.symlink(word, tmp_symlink)
+	os.rename(tmp_symlink, data_path() / 'current-game')
+	print('new game started.')
+
+def get_word():
+	print(current_game_word())
+
+def guess_word(word, data=''):
+	check_word(word)
+	secret = current_game_word()
+
+	# Has this word been suggested already?
+	previous_data = fetch_attempt(secret, word)
+	if previous_data is not None:
+		similarity, percentile, previous_data = split_data(previous_data)
+		print(format_guess(word, similarity, percentile, previous_data, True))
+		return
+		
+	# Is this word the expected one?
+	if word == secret:
+		similarity, percentile = 1, '1000'
+		store_attempt(secret, word, join_data(percent(similarity), percentile, data))
+		print(format_guess(word, similarity, percentile, data))
+		count = len(all_attempts(secret))
+		win_sentence = 'YOU WON! '
+		if count > 200:
+			win_sentence += f'It took {count} attempts -- congrats for your tenacity!'
+		else:
+			win_sentence += f'It took only {count} attempts -- congrats, you have been very fast!'
+		print(win_sentence)
+		return
+
+	word = unbritish_word(word)
+	similarity, percentile = compare_words(secret, word)
+	store_attempt(secret, word, join_data(percent(similarity), percentile, data))
+	print(format_guess(word, similarity, percentile, data))
+
+def top_words(count=10, secret=None):
+	count = int(count)
+	if secret is None:
+		secret = current_game_word()
+	all_words = all_attempts(secret)
+	for word in sorted(all_words.keys(), key=lambda word: float(all_words[word][0]), reverse=True)[:count]:
+		print(format_guess(word, *all_words[word]))
+
+COMMANDS = {
+	'new': set_random_word,
+	'set': set_word,
+	'get': get_word,
+	'guess': guess_word,
+	'top': top_words,
+}
+
+def main():
+	try:
+		retc = 255
+		name = sys.argv[0]
+		try:
+			if name in COMMANDS:
+				command = name
+				args = sys.argv[1:]
+			else:
+				command = sys.argv[1]
+				args = sys.argv[2:]
+		except IndexError:
+			retc = 1
+			print('Available commands: ' + ' '.join(COMMANDS))
+			return	
+
+		if command not in COMMANDS:
+			raise PublicException(f'Unknown command {command}')
+		retc = 127
+		COMMANDS[command](*args)
+		retc = 0
+	except PublicException as exc:
+		print(exc)
+	except Exception as exc:
+		print('Oops: something went wrong :(')
+		if env_var('DEBUG'):
+			import traceback
+			print(traceback.format_exc())
+	finally:
+		sys.exit(retc)
+
+if __name__ == '__main__':
+	main()
