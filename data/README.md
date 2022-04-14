@@ -1,15 +1,15 @@
 It is impossible to play Semantle without data.
-This documents briefly explains how to generate the 3 data files required to play Semantle.
+This document briefly explains how to generate the 3 data files required to play Semantle.
 
 # data directory
 All files described in this document should end up in the same "data" directory.
 Depending on your deployment constraints, you can pick:
-* any directory mentioned by the `SEMANTLE_DATA_PATH` environment variable
+* any directory set through the `SEMANTLE_DATA_PATH` environment variable
 * any of the standard XDG directories:
-** ~/.local/share/semantle/data
-** /usr/local/share/semantle/data
-** /usr/share/semantle/data
-* the `data/` path, relative to the current working directory
+  * ~/.local/share/semantle/data
+  * /usr/local/share/semantle/data
+  * /usr/share/semantle/data
+* `data`, relative to the current working directory
 
 # word2vec.db
 This is THE most important file. Specifically, it is a SQLite database that contains everything needed to compute semantic distances between two known words.
