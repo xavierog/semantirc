@@ -1,5 +1,5 @@
 # semantirc
-Play Semantle on IRC (or on the command line)
+Play [Semantle](https://semantle.novalis.org/) on IRC (or on the command line)
 
 This repository provides 4 parts:
 * data: explanations about how to build the precious data files required to play Semantle
