@@ -10,7 +10,6 @@ from struct import unpack
 from pathlib import Path
 from sqlite3 import connect
 from operator import mul
-from functools import cached_property
 
 NAME = 'semantle'
 DATA_SEP = ';'
@@ -122,7 +121,7 @@ def all_attempts(secret):
 		except FileNotFoundError:
 			pass
 		except OSError as ose:
-			if ose.errno != '22': # EINVAL / Invalid argument
+			if ose.errno != 22: # EINVAL / Invalid argument: not a symlink
 				raise
 	return all_words
 
