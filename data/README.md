@@ -37,5 +37,5 @@ word2vec.db is not exactly a small file (2.3 GiB) and it is purely data, so it d
 # Why is this not automated yet?
 It is, kind of. The `make-data.bash` script is a good start.
 However, depending on the exact packages installed on your system, you may have to fight against:
-* venv, which sometimes require additional packages to work as expected;
+* venv, which sometimes requires additional packages to work as expected;
 * pip, which needs to compile some C/C++ stuff.
