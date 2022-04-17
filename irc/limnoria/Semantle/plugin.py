@@ -43,6 +43,27 @@ except ImportError:
 	# without the i18n module
 	_ = lambda x: x
 
+guess_re = r'''(?x) # extended mode
+^(?P<word>[^:]+):
+\s*
+(?P<similarity>[0-9.-]+)
+\s*
+=>
+\s*
+(?P<percentile>cold|\d+/1000)
+(?P<tail>.*)$'''
+
+def reformat_guess(guess):
+	if rem := re.match(guess_re, guess):
+		word, percentile = rem.group('word'), rem.group('percentile')
+		if percentile == '1000/1000':
+			word = ircutils.mircColor(word, 'yellow', 'black')
+		elif re.match(r'^9\d\d/1000$', percentile):
+			word = ircutils.mircColor(word, 'light green', 'black')
+		word = ircutils.bold(word)
+		guess = word + ': ' + rem.group('similarity') + ' => ' + percentile + rem.group('tail')
+	return guess
+
 class Semantle(callbacks.Plugin):
 	"""Play Semantle on IRC"""
 	threaded = True
@@ -94,7 +115,9 @@ class Semantle(callbacks.Plugin):
 			return
 		data = msg.nick if msg.nick is not None else ''
 		guess_word = word.group('word').lower()
-		process, lines = self.run(irc, msg.channel, True, 'guess', guess_word, data)
+		process, lines = self.run(irc, msg.channel, False, 'guess', guess_word, data)
+		lines = list(map(reformat_guess, lines))
+		self.reply(irc, lines)
 		# After victory:
 		if self.is_victory(lines):
 			# Optionally display top guesses:
@@ -121,7 +144,9 @@ class Semantle(callbacks.Plugin):
 			return
 		if n is None:
 			n = self.registryValue('defaultTop')
-		self.run(irc, msg.channel, True, 'top', f'{n}')
+		process, lines = self.run(irc, msg.channel, False, 'top', f'{n}')
+		lines = map(reformat_guess, lines)
+		self.reply(irc, lines)
 
 	guess = wrap(guess, single_word_argument)
 	top = wrap(top, [optional('positiveInt')])
