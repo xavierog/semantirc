@@ -66,16 +66,19 @@ class Semantle(callbacks.Plugin):
 		environ['HOME'] = self.home_for_channel(network, channel)
 		return environ
 
-	def run(self, irc, channel, *args):
+	def run(self, irc, channel, autoreply, *args):
 		"""Run the "game" command, for the given channel, with the given command-line arguments."""
 		environ = self.make_environment(irc.network, channel)
 		process = subprocess.run([self.semantle_game_path, *args], env=environ, stdout=subprocess.PIPE)
 		lines = process.stdout.decode('utf-8').splitlines()
-		# Transfer the command output to IRC:
+		if autoreply:
+			self.reply(irc, lines)
+		return process, lines
+
+	def reply(self, irc, lines):
 		for line in lines:
 			irc.reply(line or ' ', sendImmediately=True)
 			time.sleep(0.5)
-		return process, lines
 
 	def is_victory(self, lines):
 		for line in lines:
@@ -91,14 +94,14 @@ class Semantle(callbacks.Plugin):
 			return
 		data = msg.nick if msg.nick is not None else ''
 		guess_word = word.group('word').lower()
-		process, lines = self.run(irc, msg.channel, 'guess', guess_word, data)
+		process, lines = self.run(irc, msg.channel, True, 'guess', guess_word, data)
 		# After victory:
 		if self.is_victory(lines):
 			# Optionally display top guesses:
 			top_after_victory = self.registryValue('topAfterVictory')
 			if top_after_victory:
 				irc.reply(f'Top {top_after_victory}:', sendImmediately=True)
-				self.run(irc, msg.channel, 'top', f'{top_after_victory}')
+				self.run(irc, msg.channel, True, 'top', f'{top_after_victory}')
 			# Optionally display a URL:
 			text = self.registryValue('textAfterVictory')
 			if text:
@@ -108,7 +111,7 @@ class Semantle(callbacks.Plugin):
 				irc.reply(text)
 			# Wait a little then start a new game:
 			time.sleep(self.registryValue('delayAfterVictory'))
-			self.run(irc, msg.channel, 'new')
+			self.run(irc, msg.channel, True, 'new')
 
 	def top(self, irc, msg, args, n):
 		"""[<n>]
@@ -118,7 +121,7 @@ class Semantle(callbacks.Plugin):
 			return
 		if n is None:
 			n = self.registryValue('defaultTop')
-		self.run(irc, msg.channel, 'top', f'{n}')
+		self.run(irc, msg.channel, True, 'top', f'{n}')
 
 	guess = wrap(guess, single_word_argument)
 	top = wrap(top, [optional('positiveInt')])
