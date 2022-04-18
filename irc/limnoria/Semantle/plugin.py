@@ -145,8 +145,11 @@ class Semantle(callbacks.Plugin):
 		if n is None:
 			n = self.registryValue('defaultTop')
 		process, lines = self.run(irc, msg.channel, False, 'top', f'{n}')
-		lines = map(reformat_guess, lines)
-		self.reply(irc, lines)
+		if not lines:
+			irc.reply('No guesses yet.')
+		else:
+			lines = map(reformat_guess, lines)
+			self.reply(irc, lines)
 
 	guess = wrap(guess, single_word_argument)
 	top = wrap(top, [optional('positiveInt')])
