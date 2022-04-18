@@ -138,7 +138,7 @@ class Semantle(callbacks.Plugin):
 
 	def top(self, irc, msg, args, n):
 		"""[<n>]
-		List top <n> guesses for the current game in the current channel"""
+		List top <n> guesses for the current game in the current channel."""
 		if msg.channel is None:
 			irc.reply('I cannot answer that outside a channel.')
 			return
