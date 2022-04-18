@@ -10,6 +10,7 @@ Config load MessageParser
 MessageParser add #semantle "(?i)^!?g(?:uess)?\s+(\S+)\s*$" "guess $1"
 MessageParser add #semantle "(?i)^!?t(?:op)?\s+(\d+)\s*$"   "top $1"
 MessageParser add #semantle "(?i)^!?t(?:op)?\s*$"           "top 5"
+MessageParser add #semantle "(?i)^!?help" "echo [help guess] / [help top]"
 
 Config config supybot.plugins.Semantle.defaultTop 5
 Config config supybot.plugins.Semantle.topAfterVictory 0
