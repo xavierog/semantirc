@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>Semantle</title>
+    <link rel="stylesheet" href="assets/styles.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png">
+    <link rel="manifest" href="assets/site.webmanifest">
+    <!--
+
+    Copyright (c) 2022, David Turner <novalis@novalis.org>
+
+     This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3.
+
+    This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+-->
+  </head>
+  <body>
+    <!-- place this script after body so it can reference it -->
+    <script src="assets/js/make.js"></script>
+    <p>
+      Want to make a custom Semantle puzzle?  Just enter a word here:
+      <form id="form" autocorrect="off" autocapitalize="none"
+            autocomplete="off">
+        <input placeholder="Word" autocorrect="off" autocapitalize="none"
+               autocomplete="off"
+               type="text" id="word">
+        <input type="submit" value="Create" id="create-btn">
+      </form>
+    </p>
+    <div id="response" aria-live="assertive"></div>
+  </body>
+</html>
+
+    

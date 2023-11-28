@@ -2,6 +2,9 @@
 set -e
 
 mkdir -p working_directory/data
+if [ ! -d working_directory/semantle ]; then
+	cp -a semantle-d1a8ae9a8458f1c4447034743c0b6d3fe93a0b22 working_directory/semantle
+fi
 cd working_directory
 
 # Need a virtualenv for both gdown and semantle
@@ -19,7 +22,6 @@ if [ ! -f "${google_vectors}" ]; then
 	gzip -d "${google_vectors}.gz"
 fi
 
-[ -d semantle ] || git clone https://gitlab.com/novalis_dt/semantle.git
 cd semantle
 
 echo 'Step 1: install Python requirements'
