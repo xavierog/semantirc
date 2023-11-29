@@ -72,6 +72,18 @@ class Semantle(callbacks.Plugin):
 		self.__parent = super(Semantle, self)
 		self.__parent.__init__(irc)
 		self.semantle_game_path = os.environ.get('SEMANTLE_GAME_PATH', 'semantle/bin/game')
+		self.hint_tracking = {}
+
+	def current_hint_tracking(self, irc, msg):
+		return self.hint_tracking.setdefault(irc.network, {}).setdefault(msg.channel, {'guesses_since_last_hint': 0})
+
+	def update_hint_tracking(self, irc, msg, action='get'):
+		tracking = self.current_hint_tracking(irc, msg)
+		if action == 'reset':
+			tracking['guesses_since_last_hint'] = 0
+		elif action == 'increment':
+			tracking['guesses_since_last_hint'] += 1
+		return tracking['guesses_since_last_hint']
 
 	def path_channel(self, channel):
 		return channel.replace('#', '')
@@ -115,6 +127,7 @@ class Semantle(callbacks.Plugin):
 			return
 		data = msg.nick if msg.nick is not None else ''
 		guess_word = word.group('word').lower()
+		self.update_hint_tracking(irc, msg, 'increment')
 		process, lines = self.run(irc, msg.channel, False, 'guess', guess_word, data)
 		lines = list(map(reformat_guess, lines))
 		self.reply(irc, lines)
@@ -134,6 +147,7 @@ class Semantle(callbacks.Plugin):
 				irc.reply(text)
 			# Wait a little then start a new game:
 			time.sleep(self.registryValue('delayAfterVictory'))
+			self.update_hint_tracking(irc, msg, 'reset')
 			self.run(irc, msg.channel, True, 'new')
 
 	def top(self, irc, msg, args, n):
@@ -151,7 +165,24 @@ class Semantle(callbacks.Plugin):
 			lines = map(reformat_guess, lines)
 			self.reply(irc, lines)
 
+	def hint(self, irc, msg, args):
+		"""takes no argument
+		Give a hint about the current game."""
+		if msg.channel is None:
+			irc.reply('I cannot answer that outside a channel.')
+			return
+		needed_guesses = 25 - self.update_hint_tracking(irc, msg)
+		if needed_guesses > 0:
+			guesses = 'guesses' if needed_guesses > 1 else 'guess'
+			irc.reply(f'You need {needed_guesses} more {guesses} to earn a hint.')
+			return
+		self.update_hint_tracking(irc, msg, 'reset')
+		process, lines = self.run(irc, msg.channel, False, 'hint')
+		lines = map(reformat_guess, lines)
+		self.reply(irc, lines)
+
 	guess = wrap(guess, single_word_argument)
 	top = wrap(top, [optional('positiveInt')])
+	hint = wrap(hint)
 
 Class = Semantle
