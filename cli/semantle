@@ -125,6 +125,11 @@ def all_attempts(secret):
 				raise
 	return all_words
 
+def all_attempts_sorted(secret, reverse=True):
+	all_words = all_attempts(secret)
+	all_words_sorted = sorted(all_words.keys(), key=lambda word: float(all_words[word][0]), reverse=reverse)
+	return all_words, all_words_sorted
+
 def join_data(similarity, percentile, data):
 	return DATA_SEP.join([str(similarity), str(percentile), str(data)])
 
@@ -262,8 +267,8 @@ def top_words(count=10, secret=None):
 	count = int(count)
 	if secret is None:
 		secret = current_game_word()
-	all_words = all_attempts(secret)
-	for word in sorted(all_words.keys(), key=lambda word: float(all_words[word][0]), reverse=True)[:count]:
+	all_words, all_words_sorted = all_attempts_sorted(secret)
+	for word in all_words_sorted[:count]:
 		print(format_guess(word, *all_words[word]))
 
 def nearby(word, limit=1000):
