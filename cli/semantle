@@ -193,6 +193,20 @@ def compare_words(secret, word):
 	similarity = cosine_similarity(word_vec, secret_vec)
 	return similarity, word_percentile
 
+def neighbor_words(word, limit):
+	connection = word2vec_connect()
+	cur = connection.cursor()
+	cur.execute(
+		"""SELECT percentile, neighbor, similarity*100
+		FROM nearby
+		WHERE word = ?
+		AND percentile != 1000
+		ORDER BY similarity DESC
+		LIMIT ?""",
+		(word, limit)
+	)
+	return cur.fetchall()
+
 def percent(value):
 	return round(value * 100.0, 2)
 
@@ -252,12 +266,32 @@ def top_words(count=10, secret=None):
 	for word in sorted(all_words.keys(), key=lambda word: float(all_words[word][0]), reverse=True)[:count]:
 		print(format_guess(word, *all_words[word]))
 
+def nearby(word, limit=1000):
+	check_word(word)
+	try:
+		limit = int(limit)
+	except ValueError:
+		raise PublicException('Invalid limit.')
+
+	neighbors = neighbor_words(word, limit)
+	if not neighbors:
+		raise PublicException('No data for this word.')
+
+	# Determine the length of the longest neighbor word:
+	longest_neighbor = max(neighbors, key=lambda n: len(n[1]))
+	max_length = len(longest_neighbor[1])
+
+	for neighbor in neighbors:
+		(percentile, neighbor, similarity) = neighbor
+		print(f'{percentile:3d} {neighbor:{max_length}} {similarity:.2f}')
+
 COMMANDS = {
 	'new': set_random_word,
 	'set': set_word,
 	'get': get_word,
 	'guess': guess_word,
 	'top': top_words,
+	'nearby': nearby,
 }
 
 def main():

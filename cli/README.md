@@ -33,6 +33,17 @@ $ semantle get
 rabbit
 ```
 
+Once you have won, have a look at neighbor words:
+```console
+$ semantle nearby rabbit 6
+999 rabbits  75.32
+998 fox      64.83
+997 bunny    64.40
+996 possum   62.99
+995 squirrel 62.64
+994 cat      62.61
+```
+
 You can also set the secret word yourself:
 ```console
 $ semantle set supercalifragilisticexpialidocious
