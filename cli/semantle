@@ -95,7 +95,7 @@ def previous_words():
 	return words
 
 def check_word(word):
-	if not re.match(r'^[a-z-]+$', word):	
+	if not re.match(r'^[a-z-]+$', word):
 		raise PublicException(f'invalid word: {word}')
 
 def store_attempt(secret, word, data):
@@ -224,7 +224,7 @@ def guess_word(word, data=''):
 		similarity, percentile, previous_data = split_data(previous_data)
 		print(format_guess(word, similarity, percentile, previous_data, True))
 		return
-		
+
 	# Is this word the expected one?
 	if word == secret:
 		similarity, percentile = 1, '1000'
@@ -274,7 +274,7 @@ def main():
 		except IndexError:
 			retc = 1
 			print('Available commands: ' + ' '.join(COMMANDS))
-			return	
+			return
 
 		if command not in COMMANDS:
 			raise PublicException(f'Unknown command {command}')
