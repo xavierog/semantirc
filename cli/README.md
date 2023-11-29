@@ -27,6 +27,12 @@ cat: 62.61 => 994/1000
 dog: 58.68 => 987/1000
 ```
 
+If you feel stuck, ask for a hint:
+```console
+$ semantle hint
+squirrel: 62.64 => 995/1000 (hint)
+```
+
 There is no "give up" feature, but the answer is never very far:
 ```console
 $ semantle get

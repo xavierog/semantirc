@@ -198,6 +198,18 @@ def compare_words(secret, word):
 	similarity = cosine_similarity(word_vec, secret_vec)
 	return similarity, word_percentile
 
+def neighbor_word(word, percentile):
+	connection = word2vec_connect()
+	cur = connection.cursor()
+	cur.execute(
+		"""SELECT neighbor
+		FROM nearby
+		WHERE word = ?
+		AND percentile = ?""",
+		(word, percentile)
+	)
+	return cur.fetchone()[0]
+
 def neighbor_words(word, limit):
 	connection = word2vec_connect()
 	cur = connection.cursor()
@@ -214,6 +226,24 @@ def neighbor_words(word, limit):
 
 def percent(value):
 	return round(value * 100.0, 2)
+
+def determine_hint_percentile(top_percentile):
+	"""
+	Given the percentile of the best guess so far, return the percentile of the
+	word that should be given as a hint to the player.
+	"""
+	if top_percentile == 'cold':
+		return 1
+	top_percentile = int(top_percentile)
+	if top_percentile >= 999:
+		return None
+	if top_percentile < 990:
+		# Each hint covers 15% of the distance that remains:
+		boost = (1000 - top_percentile) * 0.15
+		boost = 1 if boost < 1 else round(boost)
+		return top_percentile + boost
+	# 990 <= top_percentile < 999:
+	return top_percentile + 1
 
 # Commands
 
@@ -290,6 +320,21 @@ def nearby(word, limit=1000):
 		(percentile, neighbor, similarity) = neighbor
 		print(f'{percentile:3d} {neighbor:{max_length}} {similarity:.2f}')
 
+def hint():
+	secret = current_game_word()
+	all_words, all_words_sorted = all_attempts_sorted(secret)
+	if not all_words:
+		hint = 'serendipity'
+	else:
+		top_word = all_words_sorted[0]
+		top_percentile = all_words[top_word][1]
+		hint_percentile = determine_hint_percentile(top_percentile)
+		if hint_percentile is None:
+			print('No hint.')
+			return
+		hint = neighbor_word(secret, hint_percentile)
+	return guess_word(hint, 'hint')
+
 COMMANDS = {
 	'new': set_random_word,
 	'set': set_word,
@@ -297,6 +342,7 @@ COMMANDS = {
 	'guess': guess_word,
 	'top': top_words,
 	'nearby': nearby,
+	'hint': hint,
 }
 
 def main():
