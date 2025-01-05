@@ -1,0 +1,2 @@
+# Exclude Semantle data from Linguist statistics:
+data/semantle-*/** linguist-vendored
